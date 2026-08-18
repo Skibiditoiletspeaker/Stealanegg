@@ -26,12 +26,12 @@ local STAND_POSITION = Vector3.new(
 )
 
 local MIN_SPEED = 1
-local MAX_SPEED = 1000
-local DEFAULT_SPEED = 300
+local MAX_SPEED = 800
+local DEFAULT_SPEED = 450
 
 local STAND_DISTANCE = 2
 local NEST_DISTANCE = 3
-local PROMPT_DISTANCE = 13
+local PROMPT_DISTANCE = 12
 
 local PROMPT_CLICKS = 10
 local PROMPT_HOLD_TIME = 0.02
@@ -59,7 +59,7 @@ local draggingSlider = false
 pcall(function()
 	StarterGui:SetCore("SendNotification", {
 		Title = "Script",
-		Text = "Loaded",
+		Text = "nhớ bấm cái nhặt 1 trái trứng bất kì đầu tiên thì auto lụm trứng mới đc. ",
 		Duration = 4
 	})
 end)
