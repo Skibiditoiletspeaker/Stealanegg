@@ -26,12 +26,12 @@ local STAND_POSITION = Vector3.new(
 )
 
 local MIN_SPEED = 1
-local MAX_SPEED = 3000
+local MAX_SPEED = 1000
 local DEFAULT_SPEED = 300
 
 local STAND_DISTANCE = 2
 local NEST_DISTANCE = 3
-local PROMPT_DISTANCE = 12
+local PROMPT_DISTANCE = 13
 
 local PROMPT_CLICKS = 10
 local PROMPT_HOLD_TIME = 0.02
@@ -126,10 +126,11 @@ local frame = Instance.new("Frame")
 frame.Name = "MainFrame"
 
 -- Tăng chiều cao để thêm nút Destroy
-frame.Size = UDim2.new(0, 270, 0, 440)
+frame.Size =
+	UDim2.new(0, 270, 0, 480)
 
 frame.Position =
-	UDim2.new(0.5, -135, 0.5, -220)
+	UDim2.new(0.5, -135, 0.5, -240)
 
 frame.BackgroundColor3 =
 	Color3.fromRGB(30, 30, 30)
@@ -294,7 +295,7 @@ speedLabel.Size =
 	UDim2.new(0.90, 0, 0, 25)
 
 speedLabel.Position =
-	UDim2.new(0.05, 0, 0, 338)
+	UDim2.new(0.05, 0, 0, 382)
 
 speedLabel.Text =
 	"Speed: " .. tpSpeed
