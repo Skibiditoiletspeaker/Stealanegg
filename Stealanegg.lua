@@ -26,7 +26,7 @@ local STAND_POSITION = Vector3.new(
 )
 
 local MIN_SPEED = 1
-local MAX_SPEED = 500
+local MAX_SPEED = 3000
 local DEFAULT_SPEED = 300
 
 local STAND_DISTANCE = 2
@@ -308,6 +308,72 @@ speedLabel.TextColor3 =
 speedLabel.BackgroundTransparency = 1
 speedLabel.Parent = frame
 
+--Server hop
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+
+local serverHopBtn = createButton(
+	"ServerHop",
+	"Server Hop",
+	336,
+	Color3.fromRGB(70, 120, 200)
+)
+
+serverHopBtn.MouseButton1Click:Connect(function()
+
+	serverHopBtn.Text = "Hopping..."
+
+	local placeId = game.PlaceId
+
+	local success, result = pcall(function()
+		return game:HttpGet(
+			"https://games.roblox.com/v1/games/"
+			.. placeId
+			.. "/servers/Public?sortOrder=Asc&limit=100"
+		)
+	end)
+
+	if not success then
+		serverHopBtn.Text = "Server Hop"
+		return
+	end
+
+	local data = HttpService:JSONDecode(result)
+
+	local servers = {}
+
+	for _, server in ipairs(data.data or {}) do
+		if server.id ~= game.JobId
+			and server.playing < server.maxPlayers then
+
+			table.insert(servers, server)
+		end
+	end
+
+	if #servers > 0 then
+
+		local server =
+			servers[
+				math.random(1, #servers)
+			]
+
+		TeleportService:TeleportToPlaceInstance(
+			placeId,
+			server.id,
+			player
+		)
+
+	else
+
+		serverHopBtn.Text = "No Server Found"
+
+		task.wait(1)
+
+		serverHopBtn.Text = "Server Hop"
+
+	end
+
+end)
 --========================================================
 -- SLIDER
 --========================================================
