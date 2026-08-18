@@ -1,8 +1,5 @@
 --========================================================
 -- UNIVERSAL AUTO FARM HUB
--- SPEED: 1 - 2500 | DEFAULT: 500
--- PROMPT TIMEOUT: 10 SECONDS
--- HUB BUTTON: HIGHER POSITION
 --========================================================
 
 local Players = game:GetService("Players")
@@ -12,15 +9,25 @@ local ProximityPromptService = game:GetService("ProximityPromptService")
 local TeleportService = game:GetService("TeleportService")
 
 local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
 --========================================================
 -- CONFIG
 --========================================================
 
 local STAND_POSITION = Vector3.new(
-	544.577637,
-	92.0762939,
-	-364.869049
+544.577637,
+92.0762939,
+-364.869049
+)
+
+local FARM_START_CFRAME = CFrame.new(
+534.314575,
+68.5762939,
+-369.312347,
+1, 0, 0,
+0, 1, 0,
+0, 0, 1
 )
 
 local MIN_SPEED = 1
@@ -28,6 +35,13 @@ local MAX_SPEED = 2500
 local DEFAULT_SPEED = 325
 
 local PROMPT_TIMEOUT = 10
+local MOVE_Z_OFFSET = 5
+
+local TARGET_EGG_TEXTURE =
+"rbxassetid://867619398"
+
+local TARGET_EGG_SIZE = 4.03215
+
 local RESET_INTERVAL = 60
 
 --========================================================
@@ -39,278 +53,193 @@ local tpSpeed = DEFAULT_SPEED
 local tpEnabled = false
 local autoFarmEnabled = false
 local movingSafe = false
+local onlyTargetEgg = false
 
-local selectedAreas = {}
-local areaOrder = {}
-local currentAreaIndex = 1
+local destroyPetEnabled = false
+local replaceHumanoidEnabled = false
+local autoLoadConfig = true
 
-local visitedEggs = {}
 local lastResetTime = tick()
-
 local draggingSlider = false
+
+--========================================================
+-- CONFIG STORAGE
+--========================================================
+
+local CONFIG = {
+Speed = DEFAULT_SPEED,
+OnlyTargetEgg = false,
+TargetSize = 4.03215,
+AutoFarm = false,
+TPWalk = false,
+DestroyPet = false,
+ReplaceHumanoid = false,
+AutoLoadConfig = true
+}
 
 --========================================================
 -- CLEAN OLD UI
 --========================================================
 
-local playerGui = player:WaitForChild("PlayerGui")
-
-local oldUI = playerGui:FindFirstChild("SimpleAutoFarmUI")
+local oldUI =
+playerGui:FindFirstChild("SimpleAutoFarmUI")
 
 if oldUI then
-	oldUI:Destroy()
+oldUI:Destroy()
 end
 
 --========================================================
--- SCREEN GUI
+-- GUI
 --========================================================
 
 local screenGui = Instance.new("ScreenGui")
-
 screenGui.Name = "SimpleAutoFarmUI"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
---========================================================
--- HUB BUTTON
---========================================================
-
 local openBtn = Instance.new("TextButton")
-
 openBtn.Name = "OpenBtn"
-openBtn.Size = UDim2.new(0, 55, 0, 55)
-
--- Đưa HUB lên cao hơn
-openBtn.Position = UDim2.new(0, 15, 0.12, 0)
-
+openBtn.Size = UDim2.new(0,55,0,55)
+openBtn.Position = UDim2.new(0,15,0.12,0)
 openBtn.Text = "HUB"
 openBtn.Font = Enum.Font.SourceSansBold
 openBtn.TextSize = 16
-
-openBtn.BackgroundColor3 =
-	Color3.fromRGB(0, 150, 255)
-
-openBtn.TextColor3 =
-	Color3.fromRGB(255, 255, 255)
-
+openBtn.BackgroundColor3 = Color3.fromRGB(0,150,255)
+openBtn.TextColor3 = Color3.fromRGB(255,255,255)
 openBtn.Active = true
 openBtn.Parent = screenGui
 
-Instance.new("UICorner", openBtn).CornerRadius =
-	UDim.new(0, 10)
+Instance.new("UICorner",openBtn).CornerRadius =
+UDim.new(0,10)
 
 --========================================================
 -- MAIN FRAME
 --========================================================
 
 local mainFrame = Instance.new("Frame")
-
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 320, 0, 380)
-
-mainFrame.Position =
-	UDim2.new(0.5, -160, 0.5, -190)
-
-mainFrame.BackgroundColor3 =
-	Color3.fromRGB(25, 25, 30)
-
+mainFrame.Size = UDim2.new(0,320,0,390)
+mainFrame.Position = UDim2.new(0.5,-160,0.5,-195)
+mainFrame.BackgroundColor3 = Color3.fromRGB(25,25,30)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
 mainFrame.Visible = true
 mainFrame.Parent = screenGui
 
-Instance.new("UICorner", mainFrame).CornerRadius =
-	UDim.new(0, 10)
+Instance.new("UICorner",mainFrame).CornerRadius =
+UDim.new(0,10)
 
 --========================================================
 -- HEADER
 --========================================================
 
 local title = Instance.new("TextLabel")
-
-title.Size = UDim2.new(1, -40, 0, 40)
-title.Position = UDim2.new(0, 10, 0, 0)
-
+title.Size = UDim2.new(1,-40,0,40)
+title.Position = UDim2.new(0,10,0,0)
 title.Text = "AUTO FARM HUB"
-
 title.Font = Enum.Font.SourceSansBold
 title.TextSize = 18
-
-title.TextColor3 =
-	Color3.fromRGB(255, 255, 255)
-
-title.TextXAlignment =
-	Enum.TextXAlignment.Left
-
+title.TextColor3 = Color3.fromRGB(255,255,255)
+title.TextXAlignment = Enum.TextXAlignment.Left
 title.BackgroundTransparency = 1
 title.Parent = mainFrame
 
 local closeBtn = Instance.new("TextButton")
-
-closeBtn.Size = UDim2.new(0, 30, 0, 30)
-closeBtn.Position = UDim2.new(1, -35, 0, 5)
-
+closeBtn.Size = UDim2.new(0,30,0,30)
+closeBtn.Position = UDim2.new(1,-35,0,5)
 closeBtn.Text = "X"
-
 closeBtn.Font = Enum.Font.SourceSansBold
 closeBtn.TextSize = 16
-
-closeBtn.BackgroundColor3 =
-	Color3.fromRGB(200, 50, 50)
-
-closeBtn.TextColor3 =
-	Color3.fromRGB(255, 255, 255)
-
+closeBtn.BackgroundColor3 = Color3.fromRGB(200,50,50)
+closeBtn.TextColor3 = Color3.fromRGB(255,255,255)
 closeBtn.Parent = mainFrame
 
-Instance.new("UICorner", closeBtn).CornerRadius =
-	UDim.new(0, 6)
+Instance.new("UICorner",closeBtn).CornerRadius =
+UDim.new(0,6)
 
 --========================================================
 -- TABS
 --========================================================
 
 local tabFrame = Instance.new("Frame")
-
-tabFrame.Size = UDim2.new(1, -20, 0, 30)
-tabFrame.Position = UDim2.new(0, 10, 0, 40)
-
+tabFrame.Size = UDim2.new(1,-20,0,30)
+tabFrame.Position = UDim2.new(0,10,0,40)
 tabFrame.BackgroundTransparency = 1
 tabFrame.Parent = mainFrame
 
-local function makeTabBtn(text, posScale)
+local function makeTabBtn(text,posScale)
 
-	local b = Instance.new("TextButton")
+local b = Instance.new("TextButton")  
 
-	b.Size = UDim2.new(0.31, 0, 1, 0)
-	b.Position = UDim2.new(posScale, 0, 0, 0)
+b.Size = UDim2.new(0.31,0,1,0)  
+b.Position = UDim2.new(posScale,0,0,0)  
+b.Text = text  
+b.Font = Enum.Font.SourceSansBold  
+b.TextSize = 14  
+b.BackgroundColor3 = Color3.fromRGB(40,40,50)  
+b.TextColor3 = Color3.fromRGB(200,200,200)  
+b.Parent = tabFrame  
 
-	b.Text = text
+Instance.new("UICorner",b).CornerRadius =  
+	UDim.new(0,6)  
 
-	b.Font = Enum.Font.SourceSansBold
-	b.TextSize = 14
+return b
 
-	b.BackgroundColor3 =
-		Color3.fromRGB(40, 40, 50)
-
-	b.TextColor3 =
-		Color3.fromRGB(200, 200, 200)
-
-	b.Parent = tabFrame
-
-	Instance.new("UICorner", b).CornerRadius =
-		UDim.new(0, 6)
-
-	return b
 end
 
-local tabMainBtn =
-	makeTabBtn("Main", 0)
-
-local tabAreaBtn =
-	makeTabBtn("Areas", 0.34)
-
-local tabMiscBtn =
-	makeTabBtn("Settings", 0.68)
+local tabMainBtn = makeTabBtn("Main",0)
+local tabTargetBtn = makeTabBtn("Target",0.34)
+local tabMiscBtn = makeTabBtn("Settings",0.68)
 
 --========================================================
 -- PAGES
 --========================================================
 
 local container = Instance.new("Frame")
-
-container.Size = UDim2.new(1, -20, 0, 250)
-container.Position = UDim2.new(0, 10, 0, 75)
-
+container.Size = UDim2.new(1,-20,0,255)
+container.Position = UDim2.new(0,10,0,75)
 container.BackgroundTransparency = 1
 container.Parent = mainFrame
 
 local function createPage()
 
-	local p = Instance.new("ScrollingFrame")
+local p = Instance.new("ScrollingFrame")  
 
-	p.Size = UDim2.new(1, 0, 1, 0)
+p.Size = UDim2.new(1,0,1,0)  
+p.BackgroundTransparency = 1  
+p.ScrollBarThickness = 4  
+p.Visible = false  
+p.Parent = container  
 
-	p.BackgroundTransparency = 1
-	p.ScrollBarThickness = 4
+local layout = Instance.new("UIListLayout")  
+layout.Padding = UDim.new(0,6)  
+layout.HorizontalAlignment = Enum.HorizontalAlignment.Center  
+layout.Parent = p  
 
-	p.Visible = false
-	p.Parent = container
+layout:GetPropertyChangedSignal(  
+	"AbsoluteContentSize"  
+):Connect(function()  
 
-	local layout = Instance.new("UIListLayout")
+	p.CanvasSize =  
+		UDim2.new(  
+			0,0,  
+			0,  
+			layout.AbsoluteContentSize.Y + 10  
+		)  
+end)  
 
-	layout.Padding = UDim.new(0, 6)
-	layout.HorizontalAlignment =
-		Enum.HorizontalAlignment.Center
+return p
 
-	layout.Parent = p
-
-	layout:GetPropertyChangedSignal(
-		"AbsoluteContentSize"
-	):Connect(function()
-
-		p.CanvasSize =
-			UDim2.new(
-				0,
-				0,
-				0,
-				layout.AbsoluteContentSize.Y + 10
-			)
-
-	end)
-
-	return p
 end
 
 local pageMain = createPage()
-local pageArea = createPage()
+local pageTarget = createPage()
 local pageMisc = createPage()
 
 pageMain.Visible = true
 
 tabMainBtn.BackgroundColor3 =
-	Color3.fromRGB(0, 150, 255)
-
-local function showTab(btn, page)
-
-	for _, b in ipairs({
-		tabMainBtn,
-		tabAreaBtn,
-		tabMiscBtn
-	}) do
-
-		b.BackgroundColor3 =
-			Color3.fromRGB(40, 40, 50)
-
-	end
-
-	for _, p in ipairs({
-		pageMain,
-		pageArea,
-		pageMisc
-	}) do
-
-		p.Visible = false
-
-	end
-
-	btn.BackgroundColor3 =
-		Color3.fromRGB(0, 150, 255)
-
-	page.Visible = true
-end
-
-tabMainBtn.MouseButton1Click:Connect(function()
-	showTab(tabMainBtn, pageMain)
-end)
-
-tabAreaBtn.MouseButton1Click:Connect(function()
-	showTab(tabAreaBtn, pageArea)
-end)
-
-tabMiscBtn.MouseButton1Click:Connect(function()
-	showTab(tabMiscBtn, pageMisc)
-end)
+Color3.fromRGB(0,150,255)
 
 --========================================================
 -- STATUS
@@ -319,719 +248,901 @@ end)
 local statusLabel = Instance.new("TextLabel")
 
 statusLabel.Size =
-	UDim2.new(1, -20, 0, 35)
+UDim2.new(1,-20,0,35)
 
 statusLabel.Position =
-	UDim2.new(0, 10, 1, -40)
+UDim2.new(0,10,1,-40)
 
 statusLabel.BackgroundColor3 =
-	Color3.fromRGB(35, 35, 45)
+Color3.fromRGB(35,35,45)
 
 statusLabel.Text = "Status: Idle"
 
 statusLabel.Font =
-	Enum.Font.SourceSansBold
+Enum.Font.SourceSansBold
 
 statusLabel.TextSize = 14
 
 statusLabel.TextColor3 =
-	Color3.fromRGB(0, 255, 150)
+Color3.fromRGB(0,255,150)
 
 statusLabel.Parent = mainFrame
 
-Instance.new("UICorner", statusLabel).CornerRadius =
-	UDim.new(0, 6)
+Instance.new("UICorner",statusLabel).CornerRadius =
+UDim.new(0,6)
 
 --========================================================
--- HELPERS
+-- TAB FUNCTION
 --========================================================
 
-local function addToggle(page, text, default, callback)
+local function showTab(btn,page)
 
-	local b = Instance.new("TextButton")
+for _,b in ipairs({  
+	tabMainBtn,  
+	tabTargetBtn,  
+	tabMiscBtn  
+}) do  
+	b.BackgroundColor3 =  
+		Color3.fromRGB(40,40,50)  
+end  
 
-	b.Size =
-		UDim2.new(1, -4, 0, 35)
+for _,p in ipairs({  
+	pageMain,  
+	pageTarget,  
+	pageMisc  
+}) do  
+	p.Visible = false  
+end  
 
-	local state = default
+btn.BackgroundColor3 =  
+	Color3.fromRGB(0,150,255)  
 
-	b.Text =
-		text .. ": "
-		.. (state and "ON" or "OFF")
-
-	b.Font =
-		Enum.Font.SourceSansBold
-
-	b.TextSize = 14
-
-	b.BackgroundColor3 =
-		state
-		and Color3.fromRGB(0, 170, 80)
-		or Color3.fromRGB(50, 55, 65)
-
-	b.TextColor3 =
-		Color3.fromRGB(255, 255, 255)
-
-	b.Parent = page
-
-	Instance.new("UICorner", b).CornerRadius =
-		UDim.new(0, 6)
-
-	b.MouseButton1Click:Connect(function()
-
-		state = not state
-
-		b.Text =
-			text .. ": "
-			.. (state and "ON" or "OFF")
-
-		b.BackgroundColor3 =
-			state
-			and Color3.fromRGB(0, 170, 80)
-			or Color3.fromRGB(50, 55, 65)
-
-		callback(state)
-
-	end)
+page.Visible = true
 
 end
 
-local function addButton(page, text, color, callback)
+tabMainBtn.MouseButton1Click:Connect(function()
+showTab(tabMainBtn,pageMain)
+end)
 
-	local b = Instance.new("TextButton")
+tabTargetBtn.MouseButton1Click:Connect(function()
+showTab(tabTargetBtn,pageTarget)
+end)
 
-	b.Size =
-		UDim2.new(1, -4, 0, 35)
+tabMiscBtn.MouseButton1Click:Connect(function()
+showTab(tabMiscBtn,pageMisc)
+end)
 
-	b.Text = text
+--========================================================
+-- UI HELPERS
+--========================================================
 
-	b.Font =
-		Enum.Font.SourceSansBold
+local function addToggle(page,text,default,callback)
 
-	b.TextSize = 14
+local b = Instance.new("TextButton")  
 
-	b.BackgroundColor3 =
-		color
-		or Color3.fromRGB(50, 55, 65)
+b.Size = UDim2.new(1,-4,0,35)  
 
-	b.TextColor3 =
-		Color3.fromRGB(255, 255, 255)
+local state = default  
 
-	b.Parent = page
+local function refresh()  
 
-	Instance.new("UICorner", b).CornerRadius =
-		UDim.new(0, 6)
+	b.Text =  
+		text .. ": " ..  
+		(state and "ON" or "OFF")  
 
-	b.MouseButton1Click:Connect(callback)
+	b.BackgroundColor3 =  
+		state  
+		and Color3.fromRGB(0,170,80)  
+		or Color3.fromRGB(50,55,65)  
+end  
+
+refresh()  
+
+b.Font = Enum.Font.SourceSansBold  
+b.TextSize = 14  
+b.TextColor3 = Color3.fromRGB(255,255,255)  
+b.Parent = page  
+
+Instance.new("UICorner",b).CornerRadius =  
+	UDim.new(0,6)  
+
+b.MouseButton1Click:Connect(function()  
+
+	state = not state  
+	refresh()  
+
+	callback(state)  
+
+end)  
+
+return b
+
+end
+
+local function addButton(page,text,color,callback)
+
+local b = Instance.new("TextButton")  
+
+b.Size = UDim2.new(1,-4,0,35)  
+b.Text = text  
+b.Font = Enum.Font.SourceSansBold  
+b.TextSize = 14  
+
+b.BackgroundColor3 =  
+	color or Color3.fromRGB(50,55,65)  
+
+b.TextColor3 =  
+	Color3.fromRGB(255,255,255)  
+
+b.Parent = page  
+
+Instance.new("UICorner",b).CornerRadius =  
+	UDim.new(0,6)  
+
+b.MouseButton1Click:Connect(callback)  
+
+return b
 
 end
 
 --========================================================
--- CORE FUNCTIONS
+-- DROP HELD EGG
 --========================================================
 
 local function isEggHeld()
 
-	local pGui =
-		player:FindFirstChild("PlayerGui")
+local dropGui =  
+	playerGui:FindFirstChild("DropHeldEgg")  
 
-	if not pGui then
-		return false
-	end
+return dropGui  
+	and dropGui.Enabled == true
 
-	local dropGui =
-		pGui:FindFirstChild("DropHeldEgg")
-
-	return dropGui
-		and dropGui.Enabled == true
 end
+
+--========================================================
+-- AREA EGG SLOTS
+--========================================================
+
+local function getEggSlots()
+
+return workspace:FindFirstChild(  
+	"AreaEggSlotsClient"  
+)
+
+end
+
+--========================================================
+-- EGG TARGETS
+--========================================================
+
+local function getEggTargets()
+
+local result = {}  
+local slots = getEggSlots()  
+
+if not slots then  
+	return result  
+end  
+
+for _,egg in ipairs(  
+	slots:GetChildren()  
+) do  
+
+	local hitbox =  
+		egg:FindFirstChild("Hitbox")  
+
+	if hitbox  
+		and hitbox:IsA("BasePart") then  
+
+		table.insert(result,egg)  
+	end  
+end  
+
+return result
+
+end
+
+--========================================================
+-- TARGET TEXTURE
+--========================================================
+
+local function hasTargetParticle(egg)
+
+if not egg then  
+	return false  
+end  
+
+for _,obj in ipairs(  
+	egg:GetDescendants()  
+) do  
+
+	if obj:IsA("ParticleEmitter")  
+		and tostring(obj.Texture)  
+			== TARGET_EGG_TEXTURE then  
+
+		return true  
+	end  
+end  
+
+return false
+
+end
+
+--========================================================
+-- TARGET SIZE
+--========================================================
+
+local function getTargetSize(egg)
+
+if not egg then  
+	return nil  
+end  
+
+local hitbox =  
+	egg:FindFirstChild("Hitbox")  
+
+if not hitbox  
+	or not hitbox:IsA("BasePart") then  
+
+	return nil  
+end  
+
+local s = hitbox.Size  
+
+return (  
+	s.X +  
+	s.Y +  
+	s.Z  
+) / 3
+
+end
+
+--========================================================
+-- TARGET FILTER
+--========================================================
+
+local function isTargetEgg(egg)
+
+local size =  
+	getTargetSize(egg)  
+
+if not size then  
+	return false  
+end  
+
+if size < TARGET_EGG_SIZE then  
+	return false  
+end  
+
+if not onlyTargetEgg then  
+	return true  
+end  
+
+return hasTargetParticle(egg)
+
+end
+
+--========================================================
+-- EGG POSITION
+--========================================================
+
+local function getEggPosition(egg)
+
+if not egg then  
+	return nil  
+end  
+
+local hitbox =  
+	egg:FindFirstChild("Hitbox")  
+
+if hitbox  
+	and hitbox:IsA("BasePart") then  
+
+	return hitbox.Position  
+end  
+
+if egg:IsA("BasePart") then  
+	return egg.Position  
+end  
+
+if egg:IsA("Model") then  
+	return egg:GetPivot().Position  
+end  
+
+local part =  
+	egg:FindFirstChildWhichIsA(  
+		"BasePart",  
+		true  
+	)  
+
+return part and part.Position
+
+end
+
+--========================================================
+-- NEAREST TARGET
+--========================================================
+
+local function getNearestTarget()
+
+local char =  
+	player.Character  
+
+if not char then  
+	return nil  
+end  
+
+local hrp =  
+	char:FindFirstChild(  
+		"HumanoidRootPart"  
+	)  
+
+if not hrp then  
+	return nil  
+end  
+
+local nearest  
+local nearestDistance = math.huge  
+
+for _,egg in ipairs(  
+	getEggTargets()  
+) do  
+
+	if isTargetEgg(egg) then  
+
+		local pos =  
+			getEggPosition(egg)  
+
+		if pos then  
+
+			local distance =  
+				(hrp.Position - pos).Magnitude  
+
+			if distance <  
+				nearestDistance then  
+
+				nearestDistance =  
+					distance  
+
+				nearest = egg  
+			end  
+		end  
+	end  
+end  
+
+return nearest
+
+end
+
+--========================================================
+-- SHARED TP MOVEMENT
+--========================================================
+
+local function tpMoveTo(
+targetPosition,
+threshold,
+shouldContinue
+)
+
+threshold = threshold or 3  
+
+while true do  
+
+	if shouldContinue  
+		and not shouldContinue() then  
+
+		return false  
+	end  
+
+	local character =  
+		player.Character  
+
+	if not character then  
+		RunService.Heartbeat:Wait()  
+		continue  
+	end  
+
+	local hrp =  
+		character:FindFirstChild(  
+			"HumanoidRootPart"  
+		)  
+
+	if not hrp then  
+		RunService.Heartbeat:Wait()  
+		continue  
+	end  
+
+	local offset =  
+		targetPosition - hrp.Position  
+
+	local distance =  
+		offset.Magnitude  
+
+	if distance <= threshold then  
+		return true  
+	end  
+
+	local dt =  
+		RunService.Heartbeat:Wait()  
+
+	local moveAmount =  
+		math.min(  
+			tpSpeed * dt,  
+			distance  
+		)  
+
+	if offset.Magnitude > 0 then  
+
+		hrp.CFrame =  
+			hrp.CFrame  
+			+ offset.Unit  
+			* moveAmount  
+	end  
+end
+
+end
+
+--========================================================
+-- RETURN SAFE
+--========================================================
+
+local function returnToSafe()
+
+local oldAuto =  
+	autoFarmEnabled  
+
+autoFarmEnabled = false  
+movingSafe = true  
+
+statusLabel.Text =  
+	"Status: Moving To Safe..."  
+
+local success =  
+	tpMoveTo(  
+		STAND_POSITION,  
+		2,  
+		function()  
+			return movingSafe  
+		end  
+	)  
+
+movingSafe = false  
+
+if oldAuto then  
+	autoFarmEnabled = true  
+end  
+
+if success then  
+
+	statusLabel.Text =  
+		oldAuto  
+		and "Status: Waiting Egg..."  
+		or "Status: At Safe"  
+
+else  
+
+	statusLabel.Text =  
+		"Status: Safe Move Stopped"  
+end  
+
+return success
+
+end
+
+--========================================================
+-- WAIT TARGET
+--========================================================
+
+local function waitForTarget()
+
+statusLabel.Text =  
+	"Status: Waiting Egg..."  
+
+while autoFarmEnabled do  
+
+	if isEggHeld() then  
+
+		returnToSafe()  
+		task.wait(0.1)  
+		continue  
+	end  
+
+	local target =  
+		getNearestTarget()  
+
+	if target then  
+
+		statusLabel.Text =  
+			"Status: Egg Found"  
+
+		return target  
+	end  
+
+	task.wait(0.1)  
+end  
+
+return nil
+
+end
+
+--========================================================
+-- NEAREST PROMPT
+--========================================================
+
+local function getNearestPrompt(position)
+
+local nearestPrompt  
+local nearestDistance = math.huge  
+
+for _,obj in ipairs(  
+	workspace:GetDescendants()  
+) do  
+
+	if obj:IsA("ProximityPrompt")  
+		and obj.Enabled then  
+
+		local parent = obj.Parent  
+
+		if parent  
+			and parent:IsA("BasePart") then  
+
+			local distance =  
+				(parent.Position - position)  
+				.Magnitude  
+
+			if distance <  
+				nearestDistance then  
+
+				nearestDistance =  
+					distance  
+
+				nearestPrompt =  
+					obj  
+			end  
+		end  
+	end  
+end  
+
+return nearestPrompt
+
+end
+
+--========================================================
+-- TRIGGER PROMPT
+--========================================================
 
 local function triggerPrompt(prompt)
 
-	if not prompt
-		or not prompt.Parent
-		or not prompt.Enabled then
+if not prompt  
+	or not prompt.Parent  
+	or not prompt.Enabled then  
 
-		return
-	end
+	return  
+end  
 
-	if fireproximityprompt then
+if fireproximityprompt then  
 
-		pcall(function()
-			fireproximityprompt(prompt)
-		end)
+	pcall(function()  
+		fireproximityprompt(prompt)  
+	end)  
 
-	else
+else  
 
-		pcall(function()
+	pcall(function()  
 
-			prompt:InputHoldBegin()
+		prompt:InputHoldBegin()  
 
-			task.wait(0.01)
+		task.wait(0.01)  
 
-			prompt:InputHoldEnd()
+		prompt:InputHoldEnd()  
 
-		end)
+	end)  
+end
 
-	end
 end
 
 --========================================================
--- MOVE
+-- PROMPT TARGET
 --========================================================
 
-local function moveToPosition(targetPos, threshold)
+local function promptTarget(egg)
 
-	threshold = threshold or 3
+local startTime = tick()  
 
-	while autoFarmEnabled or movingSafe do
+while autoFarmEnabled do  
 
-		local char =
-			player.Character
+	if isEggHeld() then  
+		return true  
+	end  
 
-		if not char then
-			task.wait()
-			continue
-		end
+	if not egg  
+		or not egg.Parent then  
 
-		local hrp =
-			char:FindFirstChild("HumanoidRootPart")
+		return false  
+	end  
 
-		if not hrp then
-			task.wait()
-			continue
-		end
+	local char =  
+		player.Character  
 
-		local diff =
-			targetPos - hrp.Position
+	local hrp =  
+		char  
+		and char:FindFirstChild(  
+			"HumanoidRootPart"  
+		)  
 
-		local dist =
-			diff.Magnitude
+	if not hrp then  
+		task.wait()  
+		continue  
+	end  
 
-		if dist <= threshold then
-			return true
-		end
+	local prompt =  
+		getNearestPrompt(  
+			hrp.Position  
+		)  
 
-		local dt =
-			RunService.Heartbeat:Wait()
+	if prompt then  
 
-		local moveAmount =
-			math.min(
-				tpSpeed * dt,
-				dist
-			)
+		statusLabel.Text =  
+			"Status: Spamming Prompt"  
 
-		if diff.Magnitude > 0 then
+		for i = 1,10 do  
 
-			hrp.CFrame =
-				hrp.CFrame
-				+ diff.Unit * moveAmount
+			if not autoFarmEnabled then  
+				return false  
+			end  
 
-		end
-	end
+			if isEggHeld() then  
+				return true  
+			end  
 
-	return false
+			if prompt  
+				and prompt.Parent  
+				and prompt.Enabled then  
+
+				triggerPrompt(prompt)  
+			end  
+		end  
+
+	else  
+
+		statusLabel.Text =  
+			"Status: No Prompt Nearby"  
+	end  
+
+	if tick() - startTime  
+		>= PROMPT_TIMEOUT then  
+
+		statusLabel.Text =  
+			"Status: Prompt Timeout"  
+
+		return false  
+	end  
+
+	task.wait(0.01)  
+end  
+
+return false
+
 end
 
 --========================================================
--- PROMPT SPAM + TIMEOUT
---========================================================
-
-local function spamPromptUntilEggHeld()
-
-	local startTime = tick()
-
-	while autoFarmEnabled do
-
-		-- Đã cầm egg
-		if isEggHeld() then
-
-			return true
-
-		end
-
-		-- Timeout 10 giây
-		if tick() - startTime >= PROMPT_TIMEOUT then
-
-			statusLabel.Text =
-				"Status: Prompt Timeout"
-
-			return false
-
-		end
-
-		local char =
-			player.Character
-
-		if char
-			and char:FindFirstChild(
-				"HumanoidRootPart"
-			) then
-
-			local hrp =
-				char.HumanoidRootPart
-
-			for _, obj in ipairs(
-				workspace:GetDescendants()
-			) do
-
-				if obj:IsA("ProximityPrompt")
-					and obj.Enabled then
-
-					local part =
-						obj.Parent
-
-					local pos
-
-					if part:IsA("BasePart") then
-
-						pos = part.Position
-
-					elseif part:IsA("Model") then
-
-						pos =
-							part:GetPivot().Position
-
-					end
-
-					if pos then
-
-						local distance =
-							(
-								hrp.Position - pos
-							).Magnitude
-
-						if distance <= 30 then
-
-							triggerPrompt(obj)
-
-						end
-					end
-				end
-			end
-		end
-
-		task.wait(0.03)
-	end
-
-	return false
-end
-
---========================================================
--- PROMPT SHOWN
+-- PROMPT HOLD = 0
 --========================================================
 
 ProximityPromptService.PromptShown:Connect(
-	function(prompt)
+function(prompt)
 
-		pcall(function()
+pcall(function()  
+		prompt.HoldDuration = 0  
+	end)  
+end
 
-			prompt.HoldDuration = 0
-
-		end)
-
-	end
 )
 
 --========================================================
--- AREAS
---========================================================
-
-local function refreshAreas()
-
-	for _, c in ipairs(
-		pageArea:GetChildren()
-	) do
-
-		if c:IsA("TextButton") then
-			c:Destroy()
-		end
-
-	end
-
-	areaOrder = {}
-
-	local objects =
-		workspace:FindFirstChild("__OBJECTS")
-
-	local areas =
-		objects
-		and objects:FindFirstChild("Areas")
-
-	local guardAreas =
-		areas
-		and areas:FindFirstChild("GuardAreas")
-
-	if not guardAreas then
-		return
-	end
-
-	for _, areaFolder in ipairs(
-		guardAreas:GetChildren()
-	) do
-
-		if areaFolder:FindFirstChild("Nests") then
-
-			local name =
-				areaFolder.Name
-
-			table.insert(
-				areaOrder,
-				name
-			)
-
-			if selectedAreas[name] == nil then
-
-				selectedAreas[name] = true
-
-			end
-
-			addToggle(
-				pageArea,
-				name,
-				selectedAreas[name],
-				function(s)
-
-					selectedAreas[name] = s
-
-				end
-			)
-		end
-	end
-end
-
-refreshAreas()
-
---========================================================
--- NEST SEARCH
---========================================================
-
-local function getNextAreaName()
-
-	if #areaOrder == 0 then
-		return nil
-	end
-
-	for i = 1, #areaOrder do
-
-		local idx =
-			(
-				(
-					currentAreaIndex - 1
-					+ i - 1
-				)
-				% #areaOrder
-			) + 1
-
-		local name =
-			areaOrder[idx]
-
-		if selectedAreas[name] then
-
-			currentAreaIndex =
-				(idx % #areaOrder) + 1
-
-			return name
-
-		end
-	end
-
-	return nil
-end
-
-local function getSortedNestsInArea(areaName)
-
-	local objects =
-		workspace:FindFirstChild("__OBJECTS")
-
-	local areas =
-		objects
-		and objects:FindFirstChild("Areas")
-
-	local guardAreas =
-		areas
-		and areas:FindFirstChild("GuardAreas")
-
-	local areaFolder =
-		guardAreas
-		and guardAreas:FindFirstChild(areaName)
-
-	local nestsFolder =
-		areaFolder
-		and areaFolder:FindFirstChild("Nests")
-
-	if not nestsFolder then
-		return {}
-	end
-
-	local nestList = {}
-
-	for _, nest in ipairs(
-		nestsFolder:GetChildren()
-	) do
-
-		local pos
-		local size = 0
-
-		if nest:IsA("BasePart") then
-
-			pos = nest.Position
-			size = nest.Size.Magnitude
-
-		elseif nest:IsA("Model") then
-
-			pos =
-				nest:GetPivot().Position
-
-			size =
-				nest:GetExtentsSize().Magnitude
-
-		end
-
-		if pos then
-
-			local alreadyPicked = false
-
-			for _, vPos in ipairs(
-				visitedEggs
-			) do
-
-				if (
-					pos - vPos
-				).Magnitude < 3 then
-
-					alreadyPicked = true
-					break
-
-				end
-			end
-
-			if not alreadyPicked then
-
-				table.insert(
-					nestList,
-					{
-						pos = pos,
-						size = size
-					}
-				)
-
-			end
-		end
-	end
-
-	table.sort(
-		nestList,
-		function(a, b)
-
-			return a.size > b.size
-
-		end
-	)
-
-	return nestList
-end
-
---========================================================
--- MAIN AUTO FARM
+-- AUTO FARM
 --========================================================
 
 task.spawn(function()
 
-	while true do
+while true do  
 
-		task.wait(0.3)
+	task.wait(0.05)  
 
-		if autoFarmEnabled then
+	if not autoFarmEnabled then  
+		continue  
+	end  
 
-			-- Reset visited sau mỗi 60 giây
-			if tick() - lastResetTime
-				>= RESET_INTERVAL then
+	--================================================  
+	-- FIRST FARM POSITION  
+	--================================================  
 
-				visitedEggs = {}
-				lastResetTime = tick()
+	statusLabel.Text =  
+		"Status: Going To Farm Start..."  
 
-			end
+	local reachedStart =  
+		tpMoveTo(  
+			FARM_START_CFRAME.Position,  
+			2,  
+			function()  
+				return autoFarmEnabled  
+			end  
+		)  
 
-			local areaName =
-				getNextAreaName()
+	if not reachedStart  
+		or not autoFarmEnabled then  
 
-			if areaName then
+		continue  
+	end  
 
-				statusLabel.Text =
-					"Status: Check "
-					.. areaName
+	local char =  
+		player.Character  
 
-				local sortedNests =
-					getSortedNestsInArea(
-						areaName
-					)
+	local hrp =  
+		char  
+		and char:FindFirstChild(  
+			"HumanoidRootPart"  
+		)  
 
-				if #sortedNests == 0 then
+	if hrp then  
+		hrp.CFrame =  
+			FARM_START_CFRAME  
+	end  
 
-					visitedEggs = {}
+	--================================================  
+	-- FARM LOOP  
+	--================================================  
 
-					sortedNests =
-						getSortedNestsInArea(
-							areaName
-						)
+	local target =  
+		waitForTarget()  
 
-				end
+	if not target  
+		or not autoFarmEnabled then  
 
-				if #sortedNests > 0 then
+		continue  
+	end  
 
-					local target =
-						sortedNests[1]
+	local targetPos =  
+		getEggPosition(target)  
 
-					statusLabel.Text =
-						"Status: Going Nest ("
-						.. math.floor(
-							target.size
-						)
-						.. ")"
+	if not targetPos then  
+		continue  
+	end  
 
-					local reached =
-						moveToPosition(
-							target.pos,
-							3
-						)
+	targetPos =  
+		targetPos  
+		+ Vector3.new(  
+			0,  
+			0,  
+			MOVE_Z_OFFSET  
+		)  
 
-					if reached
-						and autoFarmEnabled then
+	statusLabel.Text =  
+		"Status: MoveTo Egg Z+5"  
 
-						statusLabel.Text =
-							"Status: Picking..."
+	local reached =  
+		tpMoveTo(  
+			targetPos,  
+			3,  
+			function()  
+				return autoFarmEnabled  
+			end  
+		)  
 
-						local success =
-							spamPromptUntilEggHeld()
+	if not reached  
+		or not autoFarmEnabled then  
 
-						-- Dù thành công hay timeout
-						-- đều đánh dấu nest đã xử lý
-						table.insert(
-							visitedEggs,
-							target.pos
-						)
+		continue  
+	end  
 
-						if success
-							and autoFarmEnabled then
+	--================================================  
+	-- PROMPT  
+	--================================================  
 
-							statusLabel.Text =
-								"Status: Returning..."
+	statusLabel.Text =  
+		"Status: Prompting..."  
 
-							moveToPosition(
-								STAND_POSITION,
-								2
-							)
+	local success =  
+		promptTarget(target)  
 
-							if autoFarmEnabled then
+	--================================================  
+	-- EGG HELD  
+	--================================================  
 
-								statusLabel.Text =
-									"Status: At Safe"
+	if success  
+		and isEggHeld() then  
 
-								task.wait(0.5)
+		returnToSafe()  
+		continue  
+	end  
 
-							end
+	task.wait(0.1)  
+end
 
-						elseif autoFarmEnabled then
-
-							statusLabel.Text =
-								"Status: Prompt Timeout"
-
-							task.wait(0.2)
-
-						end
-					end
-				end
-			end
-		end
-	end
 end)
 
 --========================================================
--- MAIN UI
+-- MAIN TOGGLES
 --========================================================
 
 addToggle(
-	pageMain,
-	"Auto Farm",
-	false,
-	function(s)
+pageMain,
+"Auto Farm",
+false,
+function(state)
 
-		autoFarmEnabled = s
+autoFarmEnabled = state  
 
-		if s then
+	if state then  
 
-			lastResetTime = tick()
+		statusLabel.Text =  
+			"Status: Going To Farm Start..."  
 
-			statusLabel.Text =
-				"Status: Starting..."
+	else  
 
-		else
+		statusLabel.Text =  
+			"Status: Idle"  
+	end  
+end
 
-			statusLabel.Text =
-				"Status: Idle"
-
-		end
-	end
 )
 
 addToggle(
-	pageMain,
-	"TP Walk",
-	false,
-	function(s)
+pageMain,
+"TP Walk",
+false,
+function(state)
 
-		tpEnabled = s
+tpEnabled = state  
+end
 
-	end
 )
 
+--========================================================
+-- SAFE BUTTON
+--========================================================
+
 addButton(
-	pageMain,
-	"Move to Safe Position",
-	Color3.fromRGB(0, 120, 200),
-	function()
+pageMain,
+"Move to Safe Position",
+Color3.fromRGB(0,120,200),
+function()
 
-		if movingSafe then
-			return
-		end
+if movingSafe then  
+		return  
+	end  
 
-		statusLabel.Text =
-			"Status: Moving Safe..."
+	task.spawn(function()  
 
-		task.spawn(function()
+		local oldAuto =  
+			autoFarmEnabled  
 
-			movingSafe = true
+		autoFarmEnabled = false  
+		movingSafe = true  
 
-			-- Tạm dừng farm trong lúc đi safe
-			local oldAuto =
-				autoFarmEnabled
+		statusLabel.Text =  
+			"Status: Moving Safe..."  
 
-			autoFarmEnabled = false
+		local success =  
+			tpMoveTo(  
+				STAND_POSITION,  
+				2,  
+				function()  
+					return movingSafe  
+				end  
+			)  
 
-			local success =
-				moveToPosition(
-					STAND_POSITION,
-					2
-				)
+		movingSafe = false  
+		autoFarmEnabled = oldAuto  
 
-			movingSafe = false
+		statusLabel.Text =  
+			success  
+			and "Status: At Safe"  
+			or "Status: Safe Move Stopped"  
+	end)  
+end
 
-			autoFarmEnabled = oldAuto
-
-			if success then
-
-				statusLabel.Text =
-					"Status: At Safe"
-
-			else
-
-				statusLabel.Text =
-					"Status: Safe Move Stopped"
-
-			end
-		end)
-	end
 )
 
 --========================================================
@@ -1041,425 +1152,741 @@ addButton(
 local sliderBox = Instance.new("Frame")
 
 sliderBox.Size =
-	UDim2.new(1, -4, 0, 48)
+UDim2.new(1,-4,0,48)
 
 sliderBox.BackgroundColor3 =
-	Color3.fromRGB(40, 42, 52)
+Color3.fromRGB(40,42,52)
 
 sliderBox.Parent = pageMain
 
-Instance.new("UICorner", sliderBox).CornerRadius =
-	UDim.new(0, 6)
+Instance.new("UICorner",sliderBox).CornerRadius =
+UDim.new(0,6)
 
-local speedText = Instance.new("TextLabel")
+local speedText =
+Instance.new("TextLabel")
 
 speedText.Size =
-	UDim2.new(1, -10, 0, 20)
+UDim2.new(1,-10,0,20)
 
 speedText.Position =
-	UDim2.new(0, 8, 0, 4)
+UDim2.new(0,8,0,4)
 
 speedText.Text =
-	"Speed: " .. tpSpeed
+"Speed: " .. tpSpeed
 
 speedText.Font =
-	Enum.Font.SourceSansBold
+Enum.Font.SourceSansBold
 
 speedText.TextSize = 13
-
 speedText.TextColor3 =
-	Color3.fromRGB(255, 255, 255)
+Color3.fromRGB(255,255,255)
 
 speedText.TextXAlignment =
-	Enum.TextXAlignment.Left
+Enum.TextXAlignment.Left
 
 speedText.BackgroundTransparency = 1
-
 speedText.Parent = sliderBox
 
-local sliderTrack = Instance.new("Frame")
+local sliderTrack =
+Instance.new("Frame")
 
 sliderTrack.Size =
-	UDim2.new(1, -16, 0, 8)
+UDim2.new(1,-16,0,8)
 
 sliderTrack.Position =
-	UDim2.new(0, 8, 0, 28)
+UDim2.new(0,8,0,28)
 
 sliderTrack.BackgroundColor3 =
-	Color3.fromRGB(60, 65, 80)
+Color3.fromRGB(60,65,80)
 
 sliderTrack.Parent = sliderBox
 
-Instance.new("UICorner", sliderTrack).CornerRadius =
-	UDim.new(1, 0)
+Instance.new("UICorner",sliderTrack).CornerRadius =
+UDim.new(1,0)
 
-local sliderBtn = Instance.new("TextButton")
+local sliderBtn =
+Instance.new("TextButton")
 
 sliderBtn.Size =
-	UDim2.new(0, 16, 0, 16)
+UDim2.new(0,16,0,16)
 
 local initScale =
-	(DEFAULT_SPEED - MIN_SPEED)
-	/
-	(MAX_SPEED - MIN_SPEED)
+(DEFAULT_SPEED - MIN_SPEED)
+/
+(MAX_SPEED - MIN_SPEED)
 
 sliderBtn.Position =
-	UDim2.new(
-		initScale,
-		-8,
-		0.5,
-		-8
-	)
+UDim2.new(
+initScale,
+-8,
+0.5,
+-8
+)
 
 sliderBtn.Text = ""
-
 sliderBtn.BackgroundColor3 =
-	Color3.fromRGB(0, 150, 255)
+Color3.fromRGB(0,150,255)
 
 sliderBtn.Parent = sliderTrack
 
-Instance.new("UICorner", sliderBtn).CornerRadius =
-	UDim.new(1, 0)
+Instance.new("UICorner",sliderBtn).CornerRadius =
+UDim.new(1,0)
 
 local function updateSpeedSlider(inputX)
 
-	local trackPos =
-		sliderTrack.AbsolutePosition.X
+local trackPos =  
+	sliderTrack.AbsolutePosition.X  
 
-	local trackLen =
-		sliderTrack.AbsoluteSize.X
+local trackLen =  
+	sliderTrack.AbsoluteSize.X  
 
-	if trackLen <= 0 then
-		return
-	end
+if trackLen <= 0 then  
+	return  
+end  
 
-	local scale =
-		math.clamp(
-			(inputX - trackPos)
-			/ trackLen,
-			0,
-			1
-		)
+local scale =  
+	math.clamp(  
+		(inputX - trackPos) / trackLen,  
+		0,  
+		1  
+	)  
 
-	tpSpeed =
-		math.floor(
-			MIN_SPEED
-			+
-			(
-				(MAX_SPEED - MIN_SPEED)
-				* scale
-			)
-		)
+tpSpeed =  
+	math.floor(  
+		MIN_SPEED  
+		+  
+		(MAX_SPEED - MIN_SPEED)  
+		* scale  
+	)  
 
-	sliderBtn.Position =
-		UDim2.new(
-			scale,
-			-8,
-			0.5,
-			-8
-		)
+sliderBtn.Position =  
+	UDim2.new(  
+		scale,  
+		-8,  
+		0.5,  
+		-8  
+	)  
 
-	speedText.Text =
-		"Speed: " .. tpSpeed
+speedText.Text =  
+	"Speed: " .. tpSpeed
+
 end
 
-sliderBtn.InputBegan:Connect(
-	function(input)
+sliderBtn.InputBegan:Connect(function(input)
 
-		if input.UserInputType ==
-			Enum.UserInputType.MouseButton1
-			or input.UserInputType ==
-			Enum.UserInputType.Touch then
+if input.UserInputType ==  
+	Enum.UserInputType.MouseButton1  
+	or input.UserInputType ==  
+	Enum.UserInputType.Touch then  
 
-			draggingSlider = true
+	draggingSlider = true  
+end
 
-		end
-	end
-)
+end)
 
-sliderTrack.InputBegan:Connect(
-	function(input)
+sliderTrack.InputBegan:Connect(function(input)
 
-		if input.UserInputType ==
-			Enum.UserInputType.MouseButton1
-			or input.UserInputType ==
-			Enum.UserInputType.Touch then
+if input.UserInputType ==  
+	Enum.UserInputType.MouseButton1  
+	or input.UserInputType ==  
+	Enum.UserInputType.Touch then  
 
-			draggingSlider = true
+	draggingSlider = true  
 
-			updateSpeedSlider(
-				input.Position.X
-			)
+	updateSpeedSlider(  
+		input.Position.X  
+	)  
+end
 
-		end
-	end
-)
+end)
 
-UserInputService.InputChanged:Connect(
-	function(input)
+UserInputService.InputChanged:Connect(function(input)
 
-		if draggingSlider
-			and (
-				input.UserInputType ==
-					Enum.UserInputType.MouseMovement
-				or input.UserInputType ==
-					Enum.UserInputType.Touch
-			) then
+if draggingSlider  
+	and (  
+		input.UserInputType ==  
+			Enum.UserInputType.MouseMovement  
+		or input.UserInputType ==  
+			Enum.UserInputType.Touch  
+	) then  
 
-			updateSpeedSlider(
-				input.Position.X
-			)
+	updateSpeedSlider(  
+		input.Position.X  
+	)  
+end
 
-		end
-	end
-)
+end)
 
-UserInputService.InputEnded:Connect(
-	function(input)
+UserInputService.InputEnded:Connect(function(input)
 
-		if input.UserInputType ==
-			Enum.UserInputType.MouseButton1
-			or input.UserInputType ==
-			Enum.UserInputType.Touch then
+if input.UserInputType ==  
+	Enum.UserInputType.MouseButton1  
+	or input.UserInputType ==  
+	Enum.UserInputType.Touch then  
 
-			draggingSlider = false
+	draggingSlider = false  
+end
 
-		end
-	end
+end)
+
+--========================================================
+-- TARGET SETTINGS
+--========================================================
+
+addToggle(
+pageTarget,
+"Only Target Egg",
+false,
+function(state)
+
+onlyTargetEgg = state  
+
+	statusLabel.Text =  
+		state  
+		and "Status: Target Egg ON"  
+		or "Status: Target Egg OFF"  
+end
+
 )
 
 --========================================================
--- SETTINGS
+-- TARGET SIZE
+--========================================================
+
+local sizeBox =
+Instance.new("TextBox")
+
+sizeBox.Size =
+UDim2.new(1,-4,0,35)
+
+sizeBox.Text =
+tostring(TARGET_EGG_SIZE)
+
+sizeBox.PlaceholderText =
+"Minimum Average Hitbox Size"
+
+sizeBox.ClearTextOnFocus = false
+sizeBox.Font =
+Enum.Font.SourceSansBold
+
+sizeBox.TextSize = 14
+sizeBox.TextColor3 =
+Color3.fromRGB(255,255,255)
+
+sizeBox.BackgroundColor3 =
+Color3.fromRGB(50,55,65)
+
+sizeBox.Parent = pageTarget
+
+Instance.new("UICorner",sizeBox).CornerRadius =
+UDim.new(0,6)
+
+sizeBox.FocusLost:Connect(function()
+
+local value =  
+	tonumber(sizeBox.Text)  
+
+if value and value > 0 then  
+
+	TARGET_EGG_SIZE = value  
+
+	sizeBox.Text =  
+		tostring(value)  
+
+	statusLabel.Text =  
+		"Status: Min Size = " .. value  
+
+else  
+
+	sizeBox.Text =  
+		tostring(TARGET_EGG_SIZE)  
+end
+
+end)
+
+--========================================================
+-- TARGET INFO
+--========================================================
+
+local targetInfo =
+Instance.new("TextLabel")
+
+targetInfo.Size =
+UDim2.new(1,-4,0,100)
+
+targetInfo.Text =
+"Egg: AreaEggSlotsClient children\n"
+.. "Name: RANDOM\n"
+.. "Size: Average Hitbox X/Y/Z\n"
+.. "Texture: "
+.. TARGET_EGG_TEXTURE
+.. "\nColor: IGNORED\n"
+.. "MoveTo: Egg Position + Z5"
+
+targetInfo.Font =
+Enum.Font.SourceSansBold
+
+targetInfo.TextSize = 13
+targetInfo.TextColor3 =
+Color3.fromRGB(220,220,220)
+
+targetInfo.BackgroundColor3 =
+Color3.fromRGB(40,42,52)
+
+targetInfo.Parent = pageTarget
+
+Instance.new("UICorner",targetInfo).CornerRadius =
+UDim.new(0,6)
+
+--========================================================
+-- REPLACE HUMANOID
+-- WITH JUMP SUPPORT
+--========================================================
+
+local function replaceHumanoid(char)
+
+if not char then  
+	return nil  
+end  
+
+local oldHumanoid =  
+	char:FindFirstChildOfClass("Humanoid")  
+
+if oldHumanoid then  
+	oldHumanoid:Destroy()  
+end  
+
+local newHumanoid =  
+	Instance.new("Humanoid")  
+
+newHumanoid.Name = "Humanoid"  
+
+--====================================================  
+-- JUMP  
+--====================================================  
+
+newHumanoid.UseJumpPower = true  
+newHumanoid.JumpPower = 50  
+newHumanoid.JumpHeight = 7.2  
+newHumanoid.AutoJumpEnabled = true  
+
+--====================================================  
+-- MOVEMENT  
+--====================================================  
+
+newHumanoid.WalkSpeed = 16  
+
+--====================================================  
+-- PARENT  
+--====================================================  
+
+newHumanoid.Parent = char  
+
+--====================================================  
+-- ROOT PART  
+--====================================================  
+
+local hrp =  
+	char:FindFirstChild("HumanoidRootPart")  
+
+if hrp then  
+	newHumanoid.RootPart = hrp  
+end  
+
+return newHumanoid
+
+end
+
+--========================================================
+-- REPLACE HUMANOID TOGGLE
+--========================================================
+
+addToggle(
+pageMisc,
+"Replace Humanoid",
+false,
+function(state)
+
+replaceHumanoidEnabled = state  
+
+	if state then  
+
+		local char =  
+			player.Character  
+
+		if char then  
+
+			local newHumanoid =  
+				replaceHumanoid(char)  
+
+			if newHumanoid then  
+
+				statusLabel.Text =  
+					"Status: Humanoid Replaced + Jump ON"  
+
+			else  
+
+				statusLabel.Text =  
+					"Status: Replace Failed"  
+
+			end  
+
+		else  
+
+			statusLabel.Text =  
+				"Status: Character Not Found"  
+		end  
+
+	else  
+
+		statusLabel.Text =  
+			"Status: Replace Humanoid OFF"  
+	end  
+end
+
+)
+
+--========================================================
+-- DESTROY PET TOGGLE
+--========================================================
+
+addToggle(
+pageMisc,
+"Destroy Pet Assets",
+false,
+function(state)
+
+destroyPetEnabled = state  
+
+	if state then  
+
+		local assets =  
+			workspace:FindFirstChild(  
+				"ClientRenderedAssets"  
+			)  
+
+		if assets then  
+			assets:Destroy()  
+		end  
+
+		statusLabel.Text =  
+			"Status: Pet Assets Destroyed"  
+
+	else  
+
+		statusLabel.Text =  
+			"Status: Destroy Pet OFF"  
+	end  
+end
+
+)
+
+--========================================================
+-- AUTO LOAD CONFIG TOGGLE
+--========================================================
+
+addToggle(
+pageMisc,
+"Auto Load Config",
+true,
+function(state)
+
+autoLoadConfig = state  
+end
+
+)
+
+--========================================================
+-- SAVE / LOAD
+--========================================================
+
+local function collectConfig()
+
+return {  
+	Speed = tpSpeed,  
+	OnlyTargetEgg = onlyTargetEgg,  
+	TargetSize = TARGET_EGG_SIZE,  
+	AutoFarm = autoFarmEnabled,  
+	TPWalk = tpEnabled,  
+	DestroyPet = destroyPetEnabled,  
+	ReplaceHumanoid = replaceHumanoidEnabled,  
+	AutoLoadConfig = autoLoadConfig  
+}
+
+end
+
+local function applyConfig(data)
+
+if type(data) ~= "table" then  
+	return  
+end  
+
+if tonumber(data.Speed) then  
+
+	tpSpeed =  
+		math.clamp(  
+			tonumber(data.Speed),  
+			MIN_SPEED,  
+			MAX_SPEED  
+		)  
+end  
+
+if type(data.OnlyTargetEgg) == "boolean" then  
+	onlyTargetEgg =  
+		data.OnlyTargetEgg  
+end  
+
+if tonumber(data.TargetSize)  
+	and tonumber(data.TargetSize) > 0 then  
+
+	TARGET_EGG_SIZE =  
+		tonumber(data.TargetSize)  
+end  
+
+if type(data.TPWalk) == "boolean" then  
+	tpEnabled =  
+		data.TPWalk  
+end  
+
+if type(data.AutoLoadConfig) == "boolean" then  
+	autoLoadConfig =  
+		data.AutoLoadConfig  
+end
+
+end
+
+--========================================================
+-- SAVE CONFIG
 --========================================================
 
 addButton(
-	pageMisc,
-	"Bypass Anti-Cheat (New Hum)",
-	Color3.fromRGB(180, 60, 60),
-	function()
+pageMisc,
+"Save Config",
+Color3.fromRGB(0,130,90),
+function()
 
-		local char =
-			player.Character
+local data =  
+		collectConfig()  
 
-		if char then
+	statusLabel.Text =  
+		"Status: Config Ready To Save"  
+end
 
-			local oldHum =
-				char:FindFirstChildOfClass(
-					"Humanoid"
-				)
-
-			if oldHum then
-				oldHum:Destroy()
-			end
-
-			local newHum =
-				Instance.new("Humanoid")
-
-			newHum.Parent = char
-
-			statusLabel.Text =
-				"Status: Humanoid Replaced"
-
-		end
-	end
-)
-
-addButton(
-	pageMisc,
-	"Destroy Pet Assets",
-	Color3.fromRGB(180, 100, 40),
-	function()
-
-		local assets =
-			workspace:FindFirstChild(
-				"ClientRenderedAssets"
-			)
-
-		if assets then
-
-			assets:Destroy()
-
-			statusLabel.Text =
-				"Status: Assets Destroyed"
-
-		else
-
-			statusLabel.Text =
-				"Status: Assets Not Found"
-
-		end
-	end
-)
-
-addButton(
-	pageMisc,
-	"Server Hop",
-	Color3.fromRGB(40, 100, 180),
-	function()
-
-		statusLabel.Text =
-			"Status: Hopping..."
-
-		pcall(function()
-
-			TeleportService:Teleport(
-				game.PlaceId,
-				player
-			)
-
-		end)
-	end
 )
 
 --========================================================
--- DRAG SYSTEM
+-- LOAD CONFIG
+--========================================================
+
+addButton(
+pageMisc,
+"Load Config",
+Color3.fromRGB(80,100,180),
+function()
+
+statusLabel.Text =  
+		"Status: Config Ready To Load"  
+end
+
+)
+
+--========================================================
+-- SERVER HOP
+--========================================================
+
+addButton(
+pageMisc,
+"Server Hop",
+Color3.fromRGB(40,100,180),
+function()
+
+statusLabel.Text =  
+		"Status: Hopping..."  
+
+	pcall(function()  
+
+		TeleportService:Teleport(  
+			game.PlaceId,  
+			player  
+		)  
+	end)  
+end
+
+)
+
+--========================================================
+-- DRAG
 --========================================================
 
 local function enableDrag(frame)
 
-	local dragging = false
-	local dragStart
-	local startPos
+local dragging = false  
+local dragStart  
+local startPos  
 
-	frame.InputBegan:Connect(
-		function(input)
+frame.InputBegan:Connect(function(input)  
 
-			if input.UserInputType ==
-				Enum.UserInputType.MouseButton1
-				or input.UserInputType ==
-				Enum.UserInputType.Touch then
+	if input.UserInputType ==  
+		Enum.UserInputType.MouseButton1  
+		or input.UserInputType ==  
+		Enum.UserInputType.Touch then  
 
-				dragging = true
+		dragging = true  
+		dragStart = input.Position  
+		startPos = frame.Position  
+	end  
+end)  
 
-				dragStart =
-					input.Position
+UserInputService.InputChanged:Connect(function(input)  
 
-				startPos =
-					frame.Position
+	if dragging  
+		and (  
+			input.UserInputType ==  
+				Enum.UserInputType.MouseMovement  
+			or input.UserInputType ==  
+				Enum.UserInputType.Touch  
+		) then  
 
-			end
-		end
-	)
+		local delta =  
+			input.Position - dragStart  
 
-	UserInputService.InputChanged:Connect(
-		function(input)
+		frame.Position =  
+			UDim2.new(  
+				startPos.X.Scale,  
+				startPos.X.Offset + delta.X,  
+				startPos.Y.Scale,  
+				startPos.Y.Offset + delta.Y  
+			)  
+	end  
+end)  
 
-			if dragging
-				and (
-					input.UserInputType ==
-						Enum.UserInputType.MouseMovement
-					or input.UserInputType ==
-						Enum.UserInputType.Touch
-				) then
+UserInputService.InputEnded:Connect(function(input)  
 
-				local delta =
-					input.Position
-					- dragStart
+	if input.UserInputType ==  
+		Enum.UserInputType.MouseButton1  
+		or input.UserInputType ==  
+		Enum.UserInputType.Touch then  
 
-				frame.Position =
-					UDim2.new(
-						startPos.X.Scale,
-						startPos.X.Offset
-							+ delta.X,
+		dragging = false  
+	end  
+end)
 
-						startPos.Y.Scale,
-						startPos.Y.Offset
-							+ delta.Y
-					)
-
-			end
-		end
-	)
-
-	UserInputService.InputEnded:Connect(
-		function(input)
-
-			if input.UserInputType ==
-				Enum.UserInputType.MouseButton1
-				or input.UserInputType ==
-				Enum.UserInputType.Touch then
-
-				dragging = false
-
-			end
-		end
-	)
 end
 
 enableDrag(mainFrame)
 enableDrag(openBtn)
 
 --========================================================
--- HUB ON / OFF
+-- HUB BUTTON
 --========================================================
 
-openBtn.MouseButton1Click:Connect(
-	function()
+openBtn.MouseButton1Click:Connect(function()
 
-		mainFrame.Visible =
-			not mainFrame.Visible
+mainFrame.Visible =  
+	not mainFrame.Visible
 
-	end
-)
+end)
 
-closeBtn.MouseButton1Click:Connect(
-	function()
+closeBtn.MouseButton1Click:Connect(function()
 
-		mainFrame.Visible = false
+mainFrame.Visible = false
 
-	end
-)
+end)
 
 --========================================================
--- TP WALK
+-- MANUAL TP WALK
 --========================================================
 
-RunService.Heartbeat:Connect(
-	function(dt)
+RunService.Heartbeat:Connect(function(dt)
 
-		if not tpEnabled
-			or autoFarmEnabled
-			or movingSafe then
+if not tpEnabled  
+	or autoFarmEnabled  
+	or movingSafe then  
 
-			return
+	return  
+end  
 
-		end
+local char =  
+	player.Character  
 
-		local char =
-			player.Character
+if not char then  
+	return  
+end  
 
-		if not char then
-			return
-		end
+local hum =  
+	char:FindFirstChildOfClass(  
+		"Humanoid"  
+	)  
 
-		local hum =
-			char:FindFirstChildOfClass(
-				"Humanoid"
-			)
+local hrp =  
+	char:FindFirstChild(  
+		"HumanoidRootPart"  
+	)  
 
-		local hrp =
-			char:FindFirstChild(
-				"HumanoidRootPart"
-			)
+if hum  
+	and hrp  
+	and hum.MoveDirection.Magnitude > 0 then  
 
-		if hum
-			and hrp
-			and hum.MoveDirection.Magnitude > 0 then
+	hrp.CFrame =  
+		hrp.CFrame  
+		+ hum.MoveDirection  
+		* tpSpeed  
+		* dt  
+end
 
-			hrp.CFrame =
-				hrp.CFrame
-				+
-				hum.MoveDirection
-				* tpSpeed
-				* dt
-
-		end
-	end
-)
+end)
 
 --========================================================
--- FINAL STATUS
+-- CHARACTER RESPAWN
+--========================================================
+
+player.CharacterAdded:Connect(function(char)
+
+task.wait(1)  
+
+--====================================================  
+-- REPLACE HUMANOID + JUMP  
+--====================================================  
+
+if replaceHumanoidEnabled then  
+
+	local newHumanoid =  
+		replaceHumanoid(char)  
+
+	if newHumanoid then  
+
+		newHumanoid.UseJumpPower = true  
+		newHumanoid.JumpPower = 50  
+		newHumanoid.JumpHeight = 7.2  
+		newHumanoid.AutoJumpEnabled = true  
+
+		statusLabel.Text =  
+			"Status: Respawned + Humanoid Replaced"  
+
+	end  
+end  
+
+--====================================================  
+-- DESTROY PET  
+--====================================================  
+
+if destroyPetEnabled then  
+
+	local assets =  
+		workspace:FindFirstChild(  
+			"ClientRenderedAssets"  
+		)  
+
+	if assets then  
+		assets:Destroy()  
+	end  
+end
+
+end)
+
+--========================================================
+-- DONE
 --========================================================
 
 statusLabel.Text =
-	"Status: Idle"
+"Status: Idle"
