@@ -2,9 +2,11 @@
 -- TP WALK + MOVE STAND + RANDOM NEST
 -- AUTO PROMPT 10x
 -- AUTO REPLACE HUMANOID ON RESPAWN
+-- DESTROY CLIENT RENDERED ASSETS
 -- LocalScript - StarterPlayerScripts
 --========================================================
 
+--// SERVICES
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -24,8 +26,8 @@ local STAND_POSITION = Vector3.new(
 )
 
 local MIN_SPEED = 1
-local MAX_SPEED = 300
-local DEFAULT_SPEED = 50
+local MAX_SPEED = 500
+local DEFAULT_SPEED = 300
 
 local STAND_DISTANCE = 2
 local NEST_DISTANCE = 3
@@ -56,7 +58,7 @@ local draggingSlider = false
 
 pcall(function()
 	StarterGui:SetCore("SendNotification", {
-		Title = "Combined TP Walk",
+		Title = "Script",
 		Text = "Loaded",
 		Duration = 4
 	})
@@ -93,6 +95,7 @@ screenGui.Parent = playerGui
 --========================================================
 
 local menuBtn = Instance.new("TextButton")
+
 menuBtn.Name = "MenuButton"
 menuBtn.Size = UDim2.new(0, 70, 0, 35)
 menuBtn.Position = UDim2.new(0, 10, 0.25, 0)
@@ -100,8 +103,13 @@ menuBtn.Position = UDim2.new(0, 10, 0.25, 0)
 menuBtn.Text = "MENU"
 menuBtn.TextScaled = true
 menuBtn.Font = Enum.Font.GothamBold
-menuBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
-menuBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+menuBtn.BackgroundColor3 =
+	Color3.fromRGB(0, 150, 255)
+
+menuBtn.TextColor3 =
+	Color3.fromRGB(255, 255, 255)
+
 menuBtn.Active = true
 menuBtn.Parent = screenGui
 
@@ -116,9 +124,16 @@ menuCorner.Parent = menuBtn
 local frame = Instance.new("Frame")
 
 frame.Name = "MainFrame"
-frame.Size = UDim2.new(0, 270, 0, 390)
-frame.Position = UDim2.new(0.5, -135, 0.5, -195)
-frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+
+-- Tăng chiều cao để thêm nút Destroy
+frame.Size = UDim2.new(0, 270, 0, 440)
+
+frame.Position =
+	UDim2.new(0.5, -135, 0.5, -220)
+
+frame.BackgroundColor3 =
+	Color3.fromRGB(30, 30, 30)
+
 frame.BorderSizePixel = 0
 frame.Active = true
 frame.Parent = screenGui
@@ -133,12 +148,19 @@ frameCorner.Parent = frame
 
 local title = Instance.new("TextLabel")
 
-title.Size = UDim2.new(0.75, 0, 0, 32)
-title.Position = UDim2.new(0.04, 0, 0, 3)
+title.Size =
+	UDim2.new(0.75, 0, 0, 32)
+
+title.Position =
+	UDim2.new(0.04, 0, 0, 3)
+
 title.Text = "AUTO MOVE"
 title.TextScaled = true
 title.Font = Enum.Font.GothamBold
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+title.TextColor3 =
+	Color3.fromRGB(255, 255, 255)
+
 title.BackgroundTransparency = 1
 title.Parent = frame
 
@@ -148,13 +170,22 @@ title.Parent = frame
 
 local closeBtn = Instance.new("TextButton")
 
-closeBtn.Size = UDim2.new(0, 32, 0, 30)
-closeBtn.Position = UDim2.new(1, -38, 0, 4)
+closeBtn.Size =
+	UDim2.new(0, 32, 0, 30)
+
+closeBtn.Position =
+	UDim2.new(1, -38, 0, 4)
+
 closeBtn.Text = "X"
 closeBtn.TextScaled = true
 closeBtn.Font = Enum.Font.GothamBold
-closeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+closeBtn.BackgroundColor3 =
+	Color3.fromRGB(200, 50, 50)
+
+closeBtn.TextColor3 =
+	Color3.fromRGB(255, 255, 255)
+
 closeBtn.Parent = frame
 
 local closeCorner = Instance.new("UICorner")
@@ -170,15 +201,21 @@ local function createButton(name, text, y, color)
 	local button = Instance.new("TextButton")
 
 	button.Name = name
-	button.Size = UDim2.new(0.90, 0, 0, 38)
-	button.Position = UDim2.new(0.05, 0, 0, y)
+
+	button.Size =
+		UDim2.new(0.90, 0, 0, 38)
+
+	button.Position =
+		UDim2.new(0.05, 0, 0, y)
 
 	button.Text = text
 	button.TextScaled = true
 	button.Font = Enum.Font.GothamBold
 
 	button.BackgroundColor3 = color
-	button.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+	button.TextColor3 =
+		Color3.fromRGB(255, 255, 255)
 
 	button.AutoButtonColor = true
 	button.Parent = frame
@@ -196,7 +233,7 @@ end
 
 local moveStandBtn = createButton(
 	"MoveStand",
-	"Move to Stand",
+	"Move to Safe",
 	42,
 	Color3.fromRGB(45, 125, 230)
 )
@@ -223,8 +260,8 @@ local respawnBtn = createButton(
 )
 
 local replaceHumanoidBtn = createButton(
-	"ReplaceHumanoid",
-	"Replace Humanoid",
+	"Anti Cheat bypass",
+	"Complete",
 	210,
 	Color3.fromRGB(180, 60, 60)
 )
@@ -237,18 +274,37 @@ local tpWalkBtn = createButton(
 )
 
 --========================================================
+-- DESTROY CLIENT ASSETS BUTTON
+--========================================================
+
+local destroyAssetsBtn = createButton(
+	"hide pet",
+	"Destroy pet",
+	294,
+	Color3.fromRGB(160, 60, 60)
+)
+
+--========================================================
 -- SPEED LABEL
 --========================================================
 
 local speedLabel = Instance.new("TextLabel")
 
-speedLabel.Size = UDim2.new(0.90, 0, 0, 25)
-speedLabel.Position = UDim2.new(0.05, 0, 0, 294)
+speedLabel.Size =
+	UDim2.new(0.90, 0, 0, 25)
 
-speedLabel.Text = "Speed: " .. tpSpeed
+speedLabel.Position =
+	UDim2.new(0.05, 0, 0, 338)
+
+speedLabel.Text =
+	"Speed: " .. tpSpeed
+
 speedLabel.TextScaled = true
 speedLabel.Font = Enum.Font.GothamBold
-speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+speedLabel.TextColor3 =
+	Color3.fromRGB(255, 255, 255)
+
 speedLabel.BackgroundTransparency = 1
 speedLabel.Parent = frame
 
@@ -259,10 +315,16 @@ speedLabel.Parent = frame
 local sliderTrack = Instance.new("Frame")
 
 sliderTrack.Name = "SpeedSlider"
-sliderTrack.Size = UDim2.new(0.90, 0, 0, 8)
-sliderTrack.Position = UDim2.new(0.05, 0, 0, 328)
 
-sliderTrack.BackgroundColor3 = Color3.fromRGB(65, 65, 65)
+sliderTrack.Size =
+	UDim2.new(0.90, 0, 0, 8)
+
+sliderTrack.Position =
+	UDim2.new(0.05, 0, 0, 372)
+
+sliderTrack.BackgroundColor3 =
+	Color3.fromRGB(65, 65, 65)
+
 sliderTrack.BorderSizePixel = 0
 sliderTrack.Active = true
 sliderTrack.Parent = frame
@@ -279,17 +341,23 @@ local initialScale =
 local sliderButton = Instance.new("TextButton")
 
 sliderButton.Name = "SliderButton"
-sliderButton.Size = UDim2.new(0, 20, 0, 20)
 
-sliderButton.Position = UDim2.new(
-	initialScale,
-	-10,
-	0.5,
-	-10
-)
+sliderButton.Size =
+	UDim2.new(0, 20, 0, 20)
+
+sliderButton.Position =
+	UDim2.new(
+		initialScale,
+		-10,
+		0.5,
+		-10
+	)
 
 sliderButton.Text = ""
-sliderButton.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+
+sliderButton.BackgroundColor3 =
+	Color3.fromRGB(0, 150, 255)
+
 sliderButton.Parent = sliderTrack
 
 local sliderButtonCorner = Instance.new("UICorner")
@@ -302,13 +370,20 @@ sliderButtonCorner.Parent = sliderButton
 
 local statusLabel = Instance.new("TextLabel")
 
-statusLabel.Size = UDim2.new(0.90, 0, 0, 25)
-statusLabel.Position = UDim2.new(0.05, 0, 0, 355)
+statusLabel.Size =
+	UDim2.new(0.90, 0, 0, 25)
+
+statusLabel.Position =
+	UDim2.new(0.05, 0, 0, 400)
 
 statusLabel.Text = "Status: Idle"
+
 statusLabel.TextScaled = true
 statusLabel.Font = Enum.Font.Gotham
-statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+
+statusLabel.TextColor3 =
+	Color3.fromRGB(200, 200, 200)
+
 statusLabel.BackgroundTransparency = 1
 statusLabel.Parent = frame
 
@@ -319,15 +394,22 @@ statusLabel.Parent = frame
 local interactBtn = Instance.new("TextButton")
 
 interactBtn.Name = "InteractButton"
-interactBtn.Size = UDim2.new(0, 190, 0, 42)
-interactBtn.Position = UDim2.new(0.5, -95, 0.78, 0)
+
+interactBtn.Size =
+	UDim2.new(0, 190, 0, 42)
+
+interactBtn.Position =
+	UDim2.new(0.5, -95, 0.78, 0)
 
 interactBtn.Text = "Interact Nest"
 interactBtn.TextScaled = true
 interactBtn.Font = Enum.Font.GothamBold
 
-interactBtn.BackgroundColor3 = Color3.fromRGB(46, 139, 87)
-interactBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+interactBtn.BackgroundColor3 =
+	Color3.fromRGB(46, 139, 87)
+
+interactBtn.TextColor3 =
+	Color3.fromRGB(255, 255, 255)
 
 interactBtn.Visible = false
 interactBtn.Parent = screenGui
@@ -355,14 +437,16 @@ end)
 local function makeDraggable(object)
 
 	local dragging = false
-	local dragStart
-	local startPosition
-	local dragInput
+	local dragStart = nil
+	local startPosition = nil
+	local dragInput = nil
 
 	object.InputBegan:Connect(function(input)
 
-		if input.UserInputType == Enum.UserInputType.MouseButton1
-			or input.UserInputType == Enum.UserInputType.Touch then
+		if input.UserInputType ==
+			Enum.UserInputType.MouseButton1
+			or input.UserInputType ==
+			Enum.UserInputType.Touch then
 
 			dragging = true
 			dragStart = input.Position
@@ -370,7 +454,9 @@ local function makeDraggable(object)
 
 			input.Changed:Connect(function()
 
-				if input.UserInputState == Enum.UserInputState.End then
+				if input.UserInputState ==
+					Enum.UserInputState.End then
+
 					dragging = false
 				end
 
@@ -380,8 +466,10 @@ local function makeDraggable(object)
 
 	object.InputChanged:Connect(function(input)
 
-		if input.UserInputType == Enum.UserInputType.MouseMovement
-			or input.UserInputType == Enum.UserInputType.Touch then
+		if input.UserInputType ==
+			Enum.UserInputType.MouseMovement
+			or input.UserInputType ==
+			Enum.UserInputType.Touch then
 
 			dragInput = input
 		end
@@ -392,11 +480,13 @@ local function makeDraggable(object)
 
 		if dragging and input == dragInput then
 
-			local delta = input.Position - dragStart
+			local delta =
+				input.Position - dragStart
 
 			object.Position = UDim2.new(
 				startPosition.X.Scale,
 				startPosition.X.Offset + delta.X,
+
 				startPosition.Y.Scale,
 				startPosition.Y.Offset + delta.Y
 			)
@@ -433,11 +523,14 @@ end
 local function moveToStand()
 
 	local character = player.Character
+
 	if not character then
 		return
 	end
 
-	local hrp = character:FindFirstChild("HumanoidRootPart")
+	local hrp =
+		character:FindFirstChild("HumanoidRootPart")
+
 	if not hrp then
 		return
 	end
@@ -449,7 +542,8 @@ local function moveToStand()
 	activePrompt = nil
 	interactBtn.Visible = false
 
-	statusLabel.Text = "Status: Moving → Stand"
+	statusLabel.Text =
+		"Status: Moving → Stand"
 end
 
 --========================================================
@@ -458,22 +552,30 @@ end
 
 local function getNestsFolder()
 
-	local objects = workspace:FindFirstChild("__OBJECTS")
+	local objects =
+		workspace:FindFirstChild("__OBJECTS")
+
 	if not objects then
 		return nil
 	end
 
-	local areas = objects:FindFirstChild("Areas")
+	local areas =
+		objects:FindFirstChild("Areas")
+
 	if not areas then
 		return nil
 	end
 
-	local guardAreas = areas:FindFirstChild("GuardAreas")
+	local guardAreas =
+		areas:FindFirstChild("GuardAreas")
+
 	if not guardAreas then
 		return nil
 	end
 
-	local cosmic = guardAreas:FindFirstChild("Cosmic")
+	local cosmic =
+		guardAreas:FindFirstChild("Cosmic")
+
 	if not cosmic then
 		return nil
 	end
@@ -508,18 +610,25 @@ local function moveRandomNest()
 		return
 	end
 
-	local nestsFolder = getNestsFolder()
+	local nestsFolder =
+		getNestsFolder()
 
 	if not nestsFolder then
-		statusLabel.Text = "Status: Nests not found"
+
+		statusLabel.Text =
+			"Status: Nests not found"
+
 		return
 	end
 
 	local validNests = {}
 
-	for _, nest in ipairs(nestsFolder:GetChildren()) do
+	for _, nest in ipairs(
+		nestsFolder:GetChildren()
+	) do
 
-		local position = getNestPosition(nest)
+		local position =
+			getNestPosition(nest)
 
 		if position then
 
@@ -532,16 +641,24 @@ local function moveRandomNest()
 	end
 
 	if #validNests == 0 then
-		statusLabel.Text = "Status: No valid Nest"
+
+		statusLabel.Text =
+			"Status: No valid Nest"
+
 		return
 	end
 
 	local selected =
 		validNests[
-			math.random(1, #validNests)
+			math.random(
+				1,
+				#validNests
+			)
 		]
 
-	targetPosition = selected.Position
+	targetPosition =
+		selected.Position
+
 	movementMode = "Nest"
 	isAutoMoving = true
 
@@ -559,11 +676,13 @@ end
 
 randomNestBtn.MouseButton1Click:Connect(function()
 
-	randomNestEnabled = not randomNestEnabled
+	randomNestEnabled =
+		not randomNestEnabled
 
 	if randomNestEnabled then
 
-		randomNestBtn.Text = "Random Nest: ON"
+		randomNestBtn.Text =
+			"Random Nest: ON"
 
 		randomNestBtn.BackgroundColor3 =
 			Color3.fromRGB(46, 139, 87)
@@ -572,7 +691,8 @@ randomNestBtn.MouseButton1Click:Connect(function()
 
 	else
 
-		randomNestBtn.Text = "Random Nest: OFF"
+		randomNestBtn.Text =
+			"Random Nest: OFF"
 
 		randomNestBtn.BackgroundColor3 =
 			Color3.fromRGB(100, 100, 100)
@@ -583,7 +703,7 @@ randomNestBtn.MouseButton1Click:Connect(function()
 end)
 
 --========================================================
--- MOVE STAND
+-- MOVE STAND BUTTON
 --========================================================
 
 moveStandBtn.MouseButton1Click:Connect(function()
@@ -591,7 +711,7 @@ moveStandBtn.MouseButton1Click:Connect(function()
 end)
 
 --========================================================
--- STOP
+-- STOP BUTTON
 --========================================================
 
 stopBtn.MouseButton1Click:Connect(function()
@@ -599,7 +719,7 @@ stopBtn.MouseButton1Click:Connect(function()
 end)
 
 --========================================================
--- RESPAWN
+-- RESPAWN BUTTON
 --========================================================
 
 respawnBtn.MouseButton1Click:Connect(function()
@@ -607,12 +727,15 @@ respawnBtn.MouseButton1Click:Connect(function()
 	stopMovement()
 
 	local character = player.Character
+
 	if not character then
 		return
 	end
 
 	local humanoid =
-		character:FindFirstChildOfClass("Humanoid")
+		character:FindFirstChildOfClass(
+			"Humanoid"
+		)
 
 	if humanoid then
 		humanoid.Health = 0
@@ -627,54 +750,99 @@ end)
 local function replaceHumanoid()
 
 	local character = player.Character
+
 	if not character then
 		return false
 	end
 
 	local oldHumanoid =
-		character:FindFirstChildOfClass("Humanoid")
+		character:FindFirstChildOfClass(
+			"Humanoid"
+		)
 
 	if oldHumanoid then
 		oldHumanoid:Destroy()
 	end
 
-	local newHumanoid = Instance.new("Humanoid")
+	local newHumanoid =
+		Instance.new("Humanoid")
+
 	newHumanoid.Parent = character
 
 	return true
 end
 
+--========================================================
+-- REPLACE HUMANOID BUTTON
+--========================================================
+
 replaceHumanoidBtn.MouseButton1Click:Connect(function()
 
 	if replaceHumanoid() then
-		statusLabel.Text = "Status: Humanoid replaced"
+
+		statusLabel.Text =
+			"Status: Humanoid replaced"
+
 	else
-		statusLabel.Text = "Status: Character not found"
+
+		statusLabel.Text =
+			"Status: Character not found"
+
 	end
 
 end)
 
 --========================================================
--- TP WALK
+-- TP WALK TOGGLE
 --========================================================
 
 tpWalkBtn.MouseButton1Click:Connect(function()
 
-	tpEnabled = not tpEnabled
+	tpEnabled =
+		not tpEnabled
 
 	if tpEnabled then
 
-		tpWalkBtn.Text = "TP Walk: ON"
+		tpWalkBtn.Text =
+			"TP Walk: ON"
 
 		tpWalkBtn.BackgroundColor3 =
 			Color3.fromRGB(46, 139, 87)
 
 	else
 
-		tpWalkBtn.Text = "TP Walk: OFF"
+		tpWalkBtn.Text =
+			"TP Walk: OFF"
 
 		tpWalkBtn.BackgroundColor3 =
 			Color3.fromRGB(100, 100, 100)
+
+	end
+
+end)
+
+--========================================================
+-- DESTROY CLIENT RENDERED ASSETS
+--========================================================
+
+destroyAssetsBtn.MouseButton1Click:Connect(function()
+
+	local assets =
+		workspace:FindFirstChild(
+			"ClientRenderedAssets"
+		)
+
+	if assets then
+
+		assets:Destroy()
+
+		statusLabel.Text =
+			"Status: Client Assets Destroyed"
+
+	else
+
+		statusLabel.Text =
+			"Status: Assets not found"
 
 	end
 
@@ -686,8 +854,11 @@ end)
 
 local function updateSlider(inputX)
 
-	local trackX = sliderTrack.AbsolutePosition.X
-	local trackWidth = sliderTrack.AbsoluteSize.X
+	local trackX =
+		sliderTrack.AbsolutePosition.X
+
+	local trackWidth =
+		sliderTrack.AbsoluteSize.X
 
 	if trackWidth <= 0 then
 		return
@@ -718,13 +889,16 @@ local function updateSlider(inputX)
 			-10
 		)
 
-	speedLabel.Text = "Speed: " .. tpSpeed
+	speedLabel.Text =
+		"Speed: " .. tpSpeed
 end
 
 sliderButton.InputBegan:Connect(function(input)
 
-	if input.UserInputType == Enum.UserInputType.MouseButton1
-		or input.UserInputType == Enum.UserInputType.Touch then
+	if input.UserInputType ==
+		Enum.UserInputType.MouseButton1
+		or input.UserInputType ==
+		Enum.UserInputType.Touch then
 
 		draggingSlider = true
 	end
@@ -733,12 +907,17 @@ end)
 
 sliderTrack.InputBegan:Connect(function(input)
 
-	if input.UserInputType == Enum.UserInputType.MouseButton1
-		or input.UserInputType == Enum.UserInputType.Touch then
+	if input.UserInputType ==
+		Enum.UserInputType.MouseButton1
+		or input.UserInputType ==
+		Enum.UserInputType.Touch then
 
 		draggingSlider = true
 
-		updateSlider(input.Position.X)
+		updateSlider(
+			input.Position.X
+		)
+
 	end
 
 end)
@@ -749,18 +928,25 @@ UserInputService.InputChanged:Connect(function(input)
 		return
 	end
 
-	if input.UserInputType == Enum.UserInputType.MouseMovement
-		or input.UserInputType == Enum.UserInputType.Touch then
+	if input.UserInputType ==
+		Enum.UserInputType.MouseMovement
+		or input.UserInputType ==
+		Enum.UserInputType.Touch then
 
-		updateSlider(input.Position.X)
+		updateSlider(
+			input.Position.X
+		)
+
 	end
 
 end)
 
 UserInputService.InputEnded:Connect(function(input)
 
-	if input.UserInputType == Enum.UserInputType.MouseButton1
-		or input.UserInputType == Enum.UserInputType.Touch then
+	if input.UserInputType ==
+		Enum.UserInputType.MouseButton1
+		or input.UserInputType ==
+		Enum.UserInputType.Touch then
 
 		draggingSlider = false
 	end
@@ -797,25 +983,35 @@ end
 local function findNearbyPrompt(hrp)
 
 	local nearestPrompt = nil
-	local nearestDistance = PROMPT_DISTANCE
 
-	for _, object in ipairs(workspace:GetDescendants()) do
+	local nearestDistance =
+		PROMPT_DISTANCE
+
+	for _, object in ipairs(
+		workspace:GetDescendants()
+	) do
 
 		if object:IsA("ProximityPrompt")
 			and object.Enabled then
 
-			local part = getPromptPart(object)
+			local part =
+				getPromptPart(object)
 
 			if part and part:IsA("BasePart") then
 
 				local distance =
-					(hrp.Position - part.Position).Magnitude
+					(
+						hrp.Position
+						- part.Position
+					).Magnitude
 
 				if distance <= nearestDistance then
 
-					nearestDistance = distance
-					nearestPrompt = object
+					nearestDistance =
+						distance
 
+					nearestPrompt =
+						object
 				end
 			end
 		end
@@ -830,21 +1026,25 @@ end
 
 local function spamPromptForHalfSecond()
 
-	local character = player.Character
+	local character =
+		player.Character
 
 	if not character then
 		return
 	end
 
 	local hrp =
-		character:FindFirstChild("HumanoidRootPart")
+		character:FindFirstChild(
+			"HumanoidRootPart"
+		)
 
 	if not hrp then
 		return
 	end
 
 	-- Tìm prompt gần nhất
-	local prompt = findNearbyPrompt(hrp)
+	local prompt =
+		findNearbyPrompt(hrp)
 
 	if not prompt then
 
@@ -856,10 +1056,12 @@ local function spamPromptForHalfSecond()
 
 	if not prompt.Parent
 		or not prompt.Enabled then
+
 		return
 	end
 
-	activePrompt = prompt
+	activePrompt =
+		prompt
 
 	--====================================================
 	-- BẤM 10 LẦN
@@ -870,6 +1072,7 @@ local function spamPromptForHalfSecond()
 		if not prompt
 			or not prompt.Parent
 			or not prompt.Enabled then
+
 			break
 		end
 
@@ -877,7 +1080,9 @@ local function spamPromptForHalfSecond()
 
 			prompt:InputHoldBegin()
 
-			task.wait(PROMPT_HOLD_TIME)
+			task.wait(
+				PROMPT_HOLD_TIME
+			)
 
 			prompt:InputHoldEnd()
 
@@ -922,7 +1127,8 @@ end
 
 interactBtn.MouseButton1Click:Connect(function()
 
-	local prompt = activePrompt
+	local prompt =
+		activePrompt
 
 	if not prompt then
 		return
@@ -943,7 +1149,9 @@ interactBtn.MouseButton1Click:Connect(function()
 
 		prompt:InputHoldBegin()
 
-		task.wait(PROMPT_HOLD_TIME)
+		task.wait(
+			PROMPT_HOLD_TIME
+		)
 
 		prompt:InputHoldEnd()
 
@@ -961,17 +1169,22 @@ end)
 
 RunService.Heartbeat:Connect(function(dt)
 
-	local character = player.Character
+	local character =
+		player.Character
 
 	if not character then
 		return
 	end
 
 	local humanoid =
-		character:FindFirstChildOfClass("Humanoid")
+		character:FindFirstChildOfClass(
+			"Humanoid"
+		)
 
 	local hrp =
-		character:FindFirstChild("HumanoidRootPart")
+		character:FindFirstChild(
+			"HumanoidRootPart"
+		)
 
 	if not humanoid or not hrp then
 		return
@@ -985,7 +1198,8 @@ RunService.Heartbeat:Connect(function(dt)
 		and targetPosition then
 
 		local difference =
-			targetPosition - hrp.Position
+			targetPosition
+			- hrp.Position
 
 		local distance =
 			difference.Magnitude
@@ -993,9 +1207,14 @@ RunService.Heartbeat:Connect(function(dt)
 		local arriveDistance
 
 		if movementMode == "Nest" then
-			arriveDistance = NEST_DISTANCE
+
+			arriveDistance =
+				NEST_DISTANCE
+
 		else
-			arriveDistance = STAND_DISTANCE
+
+			arriveDistance =
+				STAND_DISTANCE
 		end
 
 		--================================================
@@ -1006,13 +1225,14 @@ RunService.Heartbeat:Connect(function(dt)
 
 			isAutoMoving = false
 
-			local mode = movementMode
+			local mode =
+				movementMode
 
 			targetPosition = nil
 			movementMode = nil
 
 			--============================================
-			-- STAND
+			-- STAND ARRIVED
 			--============================================
 
 			if mode == "Stand" then
@@ -1022,18 +1242,21 @@ RunService.Heartbeat:Connect(function(dt)
 
 				if randomNestEnabled then
 
-					task.delay(0.2, function()
+					task.delay(
+						0.2,
+						function()
 
-						if randomNestEnabled then
-							moveRandomNest()
+							if randomNestEnabled then
+								moveRandomNest()
+							end
+
 						end
-
-					end)
+					)
 
 				end
 
 			--============================================
-			-- NEST
+			-- NEST ARRIVED
 			--============================================
 
 			elseif mode == "Nest" then
@@ -1076,8 +1299,10 @@ RunService.Heartbeat:Connect(function(dt)
 			)
 
 		if
-			(lookPosition - hrp.Position).Magnitude
-			> 0.01
+			(
+				lookPosition
+				- hrp.Position
+			).Magnitude > 0.01
 		then
 
 			hrp.CFrame =
@@ -1111,7 +1336,7 @@ RunService.Heartbeat:Connect(function(dt)
 end)
 
 --========================================================
--- AUTO REPLACE HUMANOID ON RESPAWN
+-- AUTO REPLACE HUMANOID ON EVERY RESPAWN
 --========================================================
 
 player.CharacterAdded:Connect(function(character)
